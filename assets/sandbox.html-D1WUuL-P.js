@@ -1,0 +1,1 @@
+import{_ as t,c as e,o as a}from"./app-NFn5hOat.js";const o={};function n(c,r){return a(),e("div")}const d=t(o,[["render",n]]),l=JSON.parse('{"path":"/padlet/sandbox.html","title":"","lang":"zh-CN","frontmatter":{},"headers":[],"git":{},"filePathRelative":"padlet/sandbox.md"}');export{d as comp,l as data};
