@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>功与功率动态演示</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+
+        .control-panel {
+            width: 33%;
+            padding: 20px;
+            background: #f5f5f5;
+            border-right: 2px solid #ddd;
+            overflow-y: auto;
+        }
+
+        .param-group {
+            margin-bottom: 20px;
+        }
+
+        .param-group label {
+            display: block;
+            margin: 12px 0;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin: 5px 0;
+        }
+
+        .value-display {
+            color: #2196F3;
+            font-weight: bold;
+            float: right;
+        }
+
+        .data-panel {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .formula {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        #canvas {
+            width: 67%;
+            height: 100vh;
+            background: #f8f8f8;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="control-panel">
+        <div class="param-group">
+            <h2>控制参数</h2>
+            <label>
+                力 F (N):
+                <span class="value-display" id="fValue">5.0</span>
+                <input type="range" id="force" min="1" max="10" step="0.1" value="5">
+            </label>
+
+            <label>
+                角度 α (°):
+                <span class="value-display" id="aValue">30</span>
+                <input type="range" id="angle" min="0" max="180" value="30">
+            </label>
+
+            <label>
+                目标距离 s (m):
+                <span class="value-display" id="sValue">5.0</span>
+                <input type="range" id="distance" min="1" max="10" step="0.1" value="5">
+            </label>
+
+            <label>
+                目标时间 t (s):
+                <span class="value-display" id="tValue">2.0</span>
+                <input type="range" id="time" min="1" max="10" step="0.1" value="2">
+            </label>
+        </div>
+
+        <div class="data-panel">
+            <h3>实时数据</h3>
+            <div>
+                水平分量 F<sub>x</sub>:
+                <span class="value-display" id="fxValue">4.33 N</span>
+                <div class="formula">F × cos(α)</div>
+            </div>
+            <div>
+                垂直分量 F<sub>y</sub>:
+                <span class="value-display" id="fyValue">2.50 N</span>
+                <div class="formula">F × sin(α)</div>
+            </div>
+            <div>
+                当前距离 s:
+                <span class="value-display" id="sCurrent">0.00 m</span>
+            </div>
+            <div>
+                当前时间 t:
+                <span class="value-display" id="tCurrent">0.00 s</span>
+            </div>
+            <div>
+                做功 W:
+                <span class="value-display" id="wValue">0.00 J</span>
+                <div class="formula">F<sub>x</sub> × s</div>
+            </div>
+            <div>
+                功率 P:
+                <span class="value-display" id="pValue">0.00 W</span>
+                <div class="formula">W ÷ t</div>
+            </div>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <button id="startBtn">开始演示</button>
+            <button id="resetBtn">重置</button>
+        </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let animationFrameId = null;
+
+        // 初始化Canvas尺寸
+        function initCanvas() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+        }
+        initCanvas();
+        window.addEventListener('resize', initCanvas);
+
+        // 物理状态
+        const state = {
+            F: 5,
+            α: 30,
+            s_target: 5,
+            t_target: 2,
+            position: 50,
+            s_current: 0,
+            t_current: 0,
+            animationStart: null,
+            isAnimating: false
+        };
+
+        // 主绘图函数
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 绘制地面
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height - 100);
+            ctx.lineTo(canvas.width, canvas.height - 100);
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            // 绘制物体
+            ctx.fillStyle = '#4CAF50';
+            ctx.fillRect(state.position, canvas.height - 160, 60, 60);
+
+            // 计算力参数
+            const radians = state.α * Math.PI / 180;
+            const Fx = state.F * Math.cos(radians);
+            const Fy = state.F * Math.sin(radians);
+            const arrowLength = state.F * 15;
+            const arrowX = state.position + 30;
+            const arrowY = canvas.height - 130;
+
+            // 绘制水平分量
+            ctx.beginPath();
+            ctx.moveTo(arrowX, arrowY);
+            ctx.lineTo(arrowX + Fx * 15, arrowY);
+            ctx.strokeStyle = 'rgba(0, 0, 255, 0.6)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // 绘制垂直分量
+            ctx.beginPath();
+            ctx.moveTo(arrowX, arrowY);
+            ctx.lineTo(arrowX, arrowY - Fy * 15);
+            ctx.strokeStyle = 'rgba(0, 200, 0, 0.6)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // 绘制力矢量
+            ctx.save();
+            ctx.translate(arrowX, arrowY);
+            ctx.rotate(-radians);
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(arrowLength, 0);
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // 绘制箭头
+            ctx.beginPath();
+            ctx.moveTo(arrowLength - 10, -5);
+            ctx.lineTo(arrowLength, 0);
+            ctx.lineTo(arrowLength - 10, 5);
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+            ctx.fill();
+            ctx.restore();
+
+            // 绘制角度标注
+            ctx.fillStyle = '#333';
+            ctx.font = '12px Arial';
+            ctx.fillText(`α=${state.α}°`, arrowX + 40, arrowY - 10);
+        }
+
+        // 更新显示数据
+        function updateDisplay() {
+            const radians = state.α * Math.PI / 180;
+            const Fx = state.F * Math.cos(radians);
+            const Fy = state.F * Math.sin(radians);
+            const W = Fx * state.s_current;
+            const P = state.t_current > 0 ? W / state.t_current : 0;
+
+            document.getElementById('fxValue').textContent = Fx.toFixed(2) + ' N';
+            document.getElementById('fyValue').textContent = Fy.toFixed(2) + ' N';
+            document.getElementById('sCurrent').textContent = state.s_current.toFixed(2) + ' m';
+            document.getElementById('tCurrent').textContent = state.t_current.toFixed(2) + ' s';
+            document.getElementById('wValue').textContent = W.toFixed(2) + ' J';
+            document.getElementById('pValue').textContent = P.toFixed(2) + ' W';
+        }
+
+        // 动画函数
+        function animate(timestamp) {
+            if (!state.animationStart) state.animationStart = timestamp;
+            const elapsed = timestamp - state.animationStart;
+            
+            state.t_current = elapsed / 1000;
+            const progress = Math.min(state.t_current / state.t_target, 1);
+            state.s_current = state.s_target * progress;
+            state.position = 50 + (state.s_current * 40);
+
+            updateDisplay();
+            draw();
+
+            if (progress < 1) {
+                animationFrameId = requestAnimationFrame(animate);
+            } else {
+                state.isAnimating = false;
+                state.animationStart = null;
+            }
+        }
+
+        // 事件监听
+        document.getElementById('startBtn').addEventListener('click', () => {
+            if (!state.isAnimating) {
+                state.isAnimating = true;
+                state.animationStart = null;
+                state.s_target = parseFloat(document.getElementById('distance').value);
+                state.t_target = parseFloat(document.getElementById('time').value);
+                animationFrameId = requestAnimationFrame(animate);
+            }
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            cancelAnimationFrame(animationFrameId);
+            state.isAnimating = false;
+            state.animationStart = null;
+            state.position = 50;
+            state.s_current = 0;
+            state.t_current = 0;
+            document.getElementById('distance').value = 5;
+            document.getElementById('time').value = 2;
+            state.s_target = 5;
+            state.t_target = 2;
+            updateDisplay();
+            draw();
+        });
+
+        document.querySelectorAll('input[type="range"]').forEach(input => {
+            input.addEventListener('input', () => {
+                state.F = parseFloat(document.getElementById('force').value);
+                state.α = parseFloat(document.getElementById('angle').value);
+                state.s_target = parseFloat(document.getElementById('distance').value);
+                state.t_target = parseFloat(document.getElementById('time').value);
+                
+                document.getElementById('fValue').textContent = state.F.toFixed(1);
+                document.getElementById('aValue').textContent = state.α;
+                document.getElementById('sValue').textContent = state.s_target.toFixed(1);
+                document.getElementById('tValue').textContent = state.t_target.toFixed(1);
+                
+                updateDisplay();
+                draw();
+            });
+        });
+
+        // 初始绘制
+        draw();
+        updateDisplay();
+    </script>
+</body>
+</html>

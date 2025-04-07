@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>锌铜原电池动态演示</title>
+    <style>
+        .container {
+            width: 800px;
+            height: 400px;
+            border: 2px solid #333;
+            margin: 20px auto;
+            position: relative;
+            background: rgba(173, 216, 230, 0.2);
+            overflow: hidden;
+        }
+
+        /* 电极样式 */
+        .electrode {
+            width: 30px;
+            height: 150px;
+            position: absolute;
+            bottom: 50px;
+            border-radius: 5px;
+            text-align: center;
+            padding-top: 10px;
+            font-weight: bold;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+        }
+        #zn {
+            left: 200px;
+            background: #7f8c8d;
+        }
+        #cu {
+            right: 200px;
+            background: #e67e22;
+        }
+
+        /* 导线样式 */
+        .wire {
+            position: absolute;
+            width: 360px;
+            height: 4px;
+            background: repeating-linear-gradient(90deg, 
+                #444 0 10px, 
+                transparent 10px 20px);
+            top: 100px;
+            left: 220px;
+        }
+
+        /* 粒子通用样式 */
+        .particle {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 20px;
+            font-size: 12px;
+            pointer-events: none;
+        }
+
+        /* 特定粒子样式 */
+        .Zn2plus { 
+            background: rgba(0,0,255,0.6);
+            animation: znDissolve 3s linear forwards;
+        }
+        .Hplus { 
+            background: rgba(255,105,180,0.6);
+            animation: hMove 2s linear forwards;
+        }
+        .electron {
+            width: 8px;
+            height: 8px;
+            background: #ff0000;
+            border-radius: 50%;
+            animation: electronFlow 1.5s linear forwards;
+        }
+
+        /* 气泡样式 */
+        .bubble {
+            width: 15px;
+            height: 15px;
+            background: rgba(255,255,255,0.7);
+            border-radius: 50%;
+            position: absolute;
+            animation: bubbleRise 1.5s ease-out forwards;
+        }
+
+        /* 动画定义 */
+        @keyframes electronFlow {
+            0% { left: 220px; top: 100px; opacity: 1; }
+            100% { left: 580px; top: 100px; opacity: 0; }
+        }
+
+        @keyframes znDissolve {
+            0% { transform: scale(1); opacity: 1; left: 220px; bottom: 100px; }
+            50% { transform: scale(1.2); opacity: 0.8; }
+            100% { transform: scale(0.5); opacity: 0; left: 240px; bottom: 150px; }
+        }
+
+        @keyframes hMove {
+            0% { left: 400px; bottom: 50px; opacity: 1; }
+            100% { left: 580px; bottom: 100px; opacity: 0; }
+        }
+
+        @keyframes bubbleRise {
+            0% { bottom: 30%; opacity: 1; transform: scale(1); }
+            100% { bottom: 70%; opacity: 0; transform: scale(1.5); }
+        }
+
+        .reaction-equation {
+            position: absolute;
+            font-size: 14px;
+            background: white;
+            padding: 5px;
+            border-radius: 3px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+        }
+        #zn-eq { left: 180px; top: 20px; }
+        #cu-eq { right: 180px; top: 20px; }
+
+        .controls {
+            text-align: center;
+            margin: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 0 10px;
+            cursor: pointer;
+            background: #4CAF50;
+            border: none;
+            color: white;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="reaction-equation" id="zn-eq">Zn → Zn²⁺ + 2e⁻</div>
+        <div class="reaction-equation" id="cu-eq">2H⁺ + 2e⁻ → H₂↑</div>
+        <div class="electrode" id="zn">Zn</div>
+        <div class="electrode" id="cu">Cu</div>
+        <div class="wire"></div>
+    </div>
+    <div class="controls">
+        <button onclick="startReaction()">开始反应</button>
+        <button onclick="reset()">重置</button>
+    </div>
+
+    <script>
+        let intervals = [];
+
+        function createParticle(type, x, y) {
+            const particle = document.createElement('div');
+            particle.className = `particle ${type}`;
+            particle.textContent = type.replace('2plus','²⁺').replace('plus','⁺');
+            particle.style.left = x + 'px';
+            particle.style.bottom = y + 'px';
+            document.querySelector('.container').appendChild(particle);
+            return particle;
+        }
+
+        function startReaction() {
+            reset();
+
+            // 锌电极氧化反应
+            intervals.push(setInterval(() => {
+                createParticle('Zn2plus', 220, 100);
+                createElectron();
+            }, 1500));
+
+            // 铜电极还原反应
+            intervals.push(setInterval(() => {
+                createHplus();
+                createBubble();
+            }, 1500));
+        }
+
+        function createElectron() {
+            const electron = document.createElement('div');
+            electron.className = 'particle electron';
+            electron.style.left = '220px';
+            electron.style.top = '100px';
+            document.querySelector('.container').appendChild(electron);
+            
+            electron.addEventListener('animationend', () => {
+                electron.remove();
+            });
+        }
+
+        function createHplus() {
+            const hplus = createParticle('Hplus', 400, 50);
+            hplus.addEventListener('animationend', () => hplus.remove());
+        }
+
+        function createBubble() {
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.style.left = '580px';
+            bubble.style.bottom = '30%';
+            document.querySelector('.container').appendChild(bubble);
+            bubble.addEventListener('animationend', () => bubble.remove());
+        }
+
+        function reset() {
+            intervals.forEach(clearInterval);
+            intervals = [];
+            document.querySelectorAll('.particle, .bubble').forEach(e => e.remove());
+        }
+    </script>
+</body>
+</html>
